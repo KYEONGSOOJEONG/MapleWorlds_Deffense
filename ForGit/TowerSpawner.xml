@@ -1,0 +1,38 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="6434b67f-ad42-4931-bbe7-c15a10947190" Language="Lua" Name="TowerSpawner" Type="Component" Source="None" ModifyTime="2024-10-11T19:13:57.6770996+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties />
+  <Methods>
+    <CodeBlockMethod Name="SpawnTower" ExecSpace="Server">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+--키를 누르거나 입력받으면 테이블값 중 레벨이 1 인것중에서 랜덤으로 하나 소환 
+local commonEntity = _EntityService:GetEntityByPath("/common")
+local dataManager = commonEntity.DataLoadManager
+--데이터매니저에서 받아오는방법
+
+local id = dataManager:GetrandomTowerId()
+--여기 이 겟랜덤 함수를 랜덤하게 바꿔주면 4개중에 1개 소환가능 
+local name = "Tower"
+local spawnPosition = Vector3(1,2,0)
+local parent = _EntityService:GetEntityByPath("/maps/gamemap/Towers")
+
+local spawnedEntity = _SpawnService:SpawnByModelId(id,name,spawnPosition, parent)
+
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if self:IsServer() then
+	self:SpawnTower()
+end
+--소환 함수는 버튼을 눌렀을 때 호출할 것 
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers />
+</CodeBlockFile>

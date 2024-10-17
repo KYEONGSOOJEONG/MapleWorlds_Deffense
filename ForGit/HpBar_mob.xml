@@ -1,0 +1,89 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="87ee9687-57a8-4b3f-95e8-b123503b9342" Language="Lua" Name="HpBar_mob" Type="Component" Source="None" ModifyTime="2024-10-11T19:30:18.499579+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="Hp" Type="number" DefaultValue="0" SyncDirection="All" />
+    <CodeBlockProperty Name="MaxHp" Type="number" DefaultValue="100" SyncDirection="All" />
+    <CodeBlockProperty Name="healthBarEntity" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+self.Hp = self.MaxHp
+
+if self:IsClient( ) then
+	self:spawnBar()
+end
+
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="OnSyncProperty" ExecSpace="ClientOnly">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="name" Type="string" SyncDirection="None" />
+        <CodeBlockProperty Name="value" Type="any" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+if name == "Hp" then
+
+	if isvalid(self.healthBarEntity) then
+		local currenHp = tonumber(value)
+		local ratio = currenHp /self.MaxHp
+		
+		self.healthBarEntity:GetChildByName("HealthBar").SpriteGUIRendererComponent.FillAmount = ratio
+
+
+	end
+end
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="spawnBar" ExecSpace="Client">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if not isvalid(self.healthBarEntity) then
+	
+	local healthbarPrefabId = "a5a0840d-a42c-4cce-a05f-ebee64b1b5a6"
+	local healthbarEntity = _SpawnService:SpawnByModelId(healthbarPrefabId," 체력바",Vector3.zero,self.Entity)
+
+	self.healthBarEntity = healthbarEntity
+end
+
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers>
+    <CodeBlockEntityEventHandler Name="HandleHitEvent" EventName="HitEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: HitComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local AttackCenter = event.AttackCenter
+-- local AttackerEntity = event.AttackerEntity
+-- local Damages = event.Damages
+-- local Extra = event.Extra
+-- local IsCritical = event.IsCritical
+-- local TotalDamage = event.TotalDamage
+---------------------------------------------------------
+if self:IsClient() then return end
+local damage = event.TotalDamage
+
+self.Hp = math.max(self.Hp - damage,0)
+
+if self.Hp <= 0 then
+	self.Entity:Destroy()
+end
+
+
+
+
+]]></Code>
+    </CodeBlockEntityEventHandler>
+  </EntityEventHandlers>
+</CodeBlockFile>

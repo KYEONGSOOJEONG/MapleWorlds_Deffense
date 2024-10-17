@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="85676d68-354d-41c0-9a94-ce07c311418d" Language="Lua" Name="SpawnManager" Type="Component" Source="None" ModifyTime="2024-10-17T00:48:46.7399516+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="time" Type="integer" DefaultValue="0" SyncDirection="None" />
+    <CodeBlockProperty Name="WaveIndex" Type="integer" DefaultValue="0" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="ServerOnly">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+--self:WaveStart()
+self.WaveIndex = 1
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="OnEndPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if self.time > 0 then
+	_TimerService:ClearTimer(self.time)
+end
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="SpawnMonster" ExecSpace="Server">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="monsterId" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+        <CodeBlockProperty Name="maxCount" Type="integer" DefaultValue="0" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+local WaveCount = 0
+local repeatSpawn = function ()
+	local id = monsterId
+    local name = "Monster"
+    local spawnPosition = Vector3(-3,-3,0)
+    local parent = _EntityService:GetEntityByPath("/maps/gamemap/Monsters")
+
+    local spawnedEntity = _SpawnService:SpawnByModelId(id,name,spawnPosition, parent)
+	WaveCount +=1
+
+	if WaveCount >= 2 then
+	_TimerService:ClearTimer(self.time)
+    end
+	--여기에 카운팅 짜고 개수 늘리다가 일정 개수가 되면 타이머삭제 하면될듯
+end
+
+self.time = _TimerService:SetTimerRepeat(repeatSpawn, 1.9, 1.5 )
+--시작시간은 웨이브 시작시간과 맞추기 빠르게할거면 빠르게 
+
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="WaveStart" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+local common = _EntityService:GetEntityByPath("/common")
+local datamanager = common.DataLoadManager
+
+
+
+local WaveData =  datamanager:GetWaveData(self.WaveIndex)
+--이위에 웨이브 인덱스로 넣어서 웨이브가 진행될때마다 인덱스 넘어가면서 데이터가져오기
+local id = WaveData[1]
+local spawnCount = tonumber(WaveData[3])
+--이런식으로 웨이브 한줄 자체를 가져와서 저장하고 그것의 인덱스로 접근한 뒤
+--id 와 hp 마릿수를 가져올수 있다
+--소환할 몬스터는 id마릿수만큼 소환하기 Hp는 프리팹에 할당할거라 ㄱㅊ
+self:SpawnMonster(id,spawnCount)
+self.WaveIndex += 1
+--여기서 인덱스가 최종라운드가 되면 게임클리어 로직 처리하면될듯
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers>
+    <CodeBlockEntityEventHandler Name="HandleKeyDownEvent" EventName="KeyDownEvent" Target="service:InputService" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: InputService
+-- Space: Client
+---------------------------------------------------------
+
+-- Parameters
+local key = event.key
+---------------------------------------------------------
+if key == KeyboardKey.A then
+	self:WaveStart()
+end
+--여기에 버튼 만들어서 버튼이벤트로 연결해주기 웨이브시작하기
+]]></Code>
+    </CodeBlockEntityEventHandler>
+  </EntityEventHandlers>
+</CodeBlockFile>

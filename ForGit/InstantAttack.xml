@@ -1,0 +1,142 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="98b602be-11d0-40c1-8429-a1ca675ae805" Language="Lua" Name="InstantAttack" Type="Component" Source="None" ModifyTime="2024-10-15T16:47:23.0897401+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="insideMonster" Type="table" DefaultValue="{}" SyncDirection="None" />
+    <CodeBlockProperty Name="currentTarget" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+    <CodeBlockProperty Name="canAttack" Type="boolean" DefaultValue="true" SyncDirection="None" />
+    <CodeBlockProperty Name="repeatDelay" Type="number" DefaultValue="0.7" SyncDirection="None" />
+    <CodeBlockProperty Name="attackStance" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="attackEffectId" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="HitEffectAt" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="Offset" Type="Vector3" DefaultValue="Vector3(0,0,0)" SyncDirection="None" />
+    <CodeBlockProperty Name="Damage" Type="number" DefaultValue="0" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="setNextTarget" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if #self.insideMonster > 0 then
+
+	self.currentTarget = self.insideMonster[1]
+    
+	if self.currentTarget == nil then
+		table.remove(self.insideMonster,1)
+		self:setNextTarget()
+	elseif self.canAttack and self.currentTarget ~=nil then
+			self:AttackTarget()
+	end
+else
+	self.currentTarget = nil
+end
+--공격하려던 타겟이 맞아서 사라졌을경우 타겟테이블에서 지워야함
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="AttackTarget" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if isvalid(self.currentTarget) and self.canAttack then
+	self.canAttack = false
+	--스폰한다 타이머 설정해서
+	--공격모션실행과 온힛부르기?
+	self:attackAnimation()
+	if isvalid(self.currentTarget) then
+		self:hitOnMonster(self.currentTarget)
+	end
+	--펑션으로 함수만들어서 canattack값바꿔주고 범위내에 있으면 공격다시하게 설정
+	local repeatAttack = function()
+		self.canAttack = true
+		if isvalid(self.currentTarget) then
+			self:AttackTarget()
+		else
+			self:setNextTarget()
+		end
+	end 
+	_TimerService:SetTimerOnce(repeatAttack,self.repeatDelay)
+end 
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="attackAnimation" ExecSpace="Client">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+
+local body = self.Entity.AvatarRendererComponent:GetBodyEntity()
+local event = ActionStateChangedEvent(self.attackStance,self.attackStance,1,SpriteAnimClipPlayType.Onetime,1,2)
+body:SendEvent(event)
+--공격모션 재생하기 !
+local position = self.Entity.TransformComponent.Position 
+--오프셋으로 해서 파라미터설정해야할지도
+_EffectService:PlayEffect(self.attackEffectId,self.Entity,position,0,Vector3.one,false)
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="hitOnMonster" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="Target" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+Target.HitComponent:OnHit(self.Entity,self.Damage,false,"",1)
+if isvalid(Target) == false then return end
+local targetPos = Target.TransformComponent.Position
+_EffectService:PlayEffect(self.HitEffectAt,Target,targetPos,0,Vector3.one,false)
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers>
+    <CodeBlockEntityEventHandler Name="HandleTriggerEnterEvent" EventName="TriggerEnterEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: TriggerComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local TriggerBodyEntity = event.TriggerBodyEntity
+---------------------------------------------------------
+local target = event.TriggerBodyEntity
+
+if self:IsClient() then return end
+
+if isvalid(target) and target:GetComponent(HitComponent) then
+	table.insert(self.insideMonster,target)
+
+	if not isvalid(self.currentTarget) then
+		--타겟설정함수
+		self:setNextTarget()
+		
+	end
+end
+]]></Code>
+    </CodeBlockEntityEventHandler>
+    <CodeBlockEntityEventHandler Name="HandleTriggerLeaveEvent" EventName="TriggerLeaveEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: TriggerComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local TriggerBodyEntity = event.TriggerBodyEntity
+---------------------------------------------------------
+local target = event.TriggerBodyEntity
+
+if self:IsClient() then return end 
+
+
+for i, monster in pairs(self.insideMonster) do
+	if monster == target then
+		table.remove(self.insideMonster, i)
+
+		break
+	end
+end
+if self.currentTarget == target then
+	--다음타겟설정
+	self:setNextTarget()
+end
+]]></Code>
+    </CodeBlockEntityEventHandler>
+  </EntityEventHandlers>
+</CodeBlockFile>

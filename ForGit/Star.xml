@@ -1,0 +1,77 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="1a52de82-7e9c-4276-8c15-8094d31cbd14" Language="Lua" Name="Star" Type="Component" Source="None" ModifyTime="2024-10-15T16:26:03.380973+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="speed" Type="number" DefaultValue="2" SyncDirection="None" />
+    <CodeBlockProperty Name="damage" Type="number" DefaultValue="7" SyncDirection="None" />
+    <CodeBlockProperty Name="tower" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+    <CodeBlockProperty Name="time" Type="number" DefaultValue="0" SyncDirection="None" />
+    <CodeBlockProperty Name="HitEffectId" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="destroyDelay" Type="number" DefaultValue="0" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+
+local destroy = function()
+	self:serverDestroy()
+end	
+
+_TimerService:SetTimerOnce(destroy,self.destroyDelay)
+
+--트리거 이벤트해서 범위내로 들어오면 이동하게 하는 함수를 해도될듯 아니면 
+--범위내에 들어오면 스폰하게끔 하는 함수를 발동 이동함수까지 동시에 
+--지금 현재는 공격체의 범위내에 들어왔을때만 이동을 한다 
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="serverDestroy" ExecSpace="Server">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+self.Entity:Destroy()
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="serverAttack" ExecSpace="Server">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="monster" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+monster.HitComponent:OnHit(self.Entity,self.damage,false,"",1)
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="HitEffect" ExecSpace="Client">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="monster" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+if isvalid(monster) == false then return end
+local monsterPos = monster.TransformComponent.Position
+_EffectService:PlayEffect(self.HitEffectId,monster,monsterPos,0,Vector3.one,false)
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers>
+    <CodeBlockEntityEventHandler Name="HandleTriggerEnterEvent" EventName="TriggerEnterEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: TriggerComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local TriggerBodyEntity = event.TriggerBodyEntity
+---------------------------------------------------------
+--공격 및 사라지기 
+local monster = event.TriggerBodyEntity
+self:serverAttack(monster)
+self:HitEffect(monster)
+
+self:serverDestroy()
+]]></Code>
+    </CodeBlockEntityEventHandler>
+  </EntityEventHandlers>
+</CodeBlockFile>

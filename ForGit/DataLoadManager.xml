@@ -1,0 +1,75 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="7e459182-633a-484b-a8d7-d893e1d60941" Language="Lua" Name="DataLoadManager" Type="Component" Source="None" ModifyTime="2024-10-17T00:49:23.1281139+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="dataTable_Towers" Type="table" DefaultValue="{}" SyncDirection="None" />
+    <CodeBlockProperty Name="dataTable_MonsterWave" Type="table" DefaultValue="{}" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="OnInitialize" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+self:DataLoader("Towers",self.dataTable_Towers)
+self:DataLoader("MonsterWave",self.dataTable_MonsterWave)
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="DataLoader" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="dataSetName" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+        <CodeBlockProperty Name="dataTable" Type="table" DefaultValue="{}" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+if dataTable == nil then
+	dataTable = {}
+end
+local dataSetTable = _DataService:GetTable(dataSetName)
+local rowCount = dataSetTable:GetRowCount()
+local columnCount = dataSetTable.Columns.Count
+
+for row = 1, rowCount do
+	if dataTable[row] == nil then
+		dataTable[row] = {}
+	end
+	
+	for column = 1, columnCount do
+		dataTable[row][column] = dataSetTable:GetCell(row,column)
+	end
+	
+end
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="GetrandomTowerId" ExecSpace="Server">
+      <Return Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+      <Arguments />
+      <Code><![CDATA[
+--소환하려는 레벨의 타워들중 랜덤으로 뽑기 or 모든 것들중 랜덤으로 뽑기
+local random = math.random(1,4)
+
+return self.dataTable_Towers[random][1]
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="GetWaveData" ExecSpace="All">
+      <Return Type="table" DefaultValue="{}" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="WaveIndex" Type="integer" DefaultValue="0" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+local waveTable = self.dataTable_MonsterWave[1]
+--위에 인덱스를 전달하면 해당웨이브에 나와야할 몬스터 줄을 가져와서 반환한다
+return waveTable
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers />
+</CodeBlockFile>

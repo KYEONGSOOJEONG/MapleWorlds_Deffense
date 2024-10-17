@@ -1,0 +1,171 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<CodeBlockFile xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" Id="1876980e-f81e-413b-81c6-076fe64c78be" Language="Lua" Name="ProjectileComponent" Type="Component" Source="None" ModifyTime="2024-10-15T16:48:13.3683809+09:00">
+  <CoreVersion Major="0" Minor="2" />
+  <ScriptVersion Major="1" Minor="1" />
+  <Description />
+  <Properties>
+    <CodeBlockProperty Name="insideMonsters" Type="table" DefaultValue="{}" SyncDirection="None" />
+    <CodeBlockProperty Name="currentTarget" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+    <CodeBlockProperty Name="canAttack" Type="boolean" DefaultValue="true" SyncDirection="None" />
+    <CodeBlockProperty Name="repeatDelay" Type="number" DefaultValue="0.5" SyncDirection="None" />
+    <CodeBlockProperty Name="projectRUID" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="attackStance" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="attackEffectId" Type="string" DefaultValue="&quot;&quot;" SyncDirection="None" />
+    <CodeBlockProperty Name="Offset" Type="Vector3" DefaultValue="Vector3(0,0,0)" SyncDirection="None" />
+  </Properties>
+  <Methods>
+    <CodeBlockMethod Name="OnBeginPlay" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+--이게 붙어있는 엔티티는 포탑역활이고 이 포탑은 범위내에 들어오면 공격을 한는 로직
+-- 콜라이더 범위내에 들어오면 일정시간 간격으로 공격하는 함수 반복실행? 
+-- 그 반복 함수는 스폰과 이동을 동시에 구현시킨다. 트리거내에 들어온 그 엔티티를 찾아서 할당시키고
+--그걸 타겟으로 해서 소환된 투사체에 전달하고 투사체의 이동함수를 실행시킨다.
+
+--이건 궁수와 도적 등의 투사체만 기능함
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="setNextTarget" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if #self.insideMonsters > 0 then
+
+	self.currentTarget = self.insideMonsters[1]
+    
+	if self.currentTarget == nil then
+		table.remove(self.insideMonsters,1)
+		self:setNextTarget()
+	elseif self.canAttack and self.currentTarget ~=nil then
+			self:AttackTarget()
+	end
+else
+	self.currentTarget = nil
+end
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="AttackTarget" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+if isvalid(self.currentTarget) and self.canAttack then
+	self.canAttack = false
+	--스폰한다 타이머 설정해서
+	self:ProjectileSpawn() 
+
+	--펑션으로 함수만들어서 canattack값바꿔주고 범위내에 있으면 공격다시하게 설정
+	local repeatAttack = function()
+		self.canAttack = true
+		if isvalid(self.currentTarget) then
+			self:AttackTarget()
+		else
+			self:setNextTarget()
+		end
+	end 
+	_TimerService:SetTimerOnce(repeatAttack,self.repeatDelay)
+end 
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="MoveToMonster" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Arguments>
+        <CodeBlockProperty Name="spawnedEntity" Type="Entity" DefaultValue="nil" SyncDirection="None" />
+      </Arguments>
+      <Code><![CDATA[
+
+if isvalid(self.currentTarget) then
+	local monsterPos = self.currentTarget.TransformComponent.Position:ToVector2()
+    _TweenLogic:MoveTo(spawnedEntity,monsterPos,0.1,EaseType.SineEaseIn)
+else 
+	return	
+end
+
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="attackAmination" ExecSpace="Client">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+--여기서 변수로 정한 이름에 맞게 자세를 취하게만들기
+
+
+local body = self.Entity.AvatarRendererComponent:GetBodyEntity()
+local event = ActionStateChangedEvent(self.attackStance,self.attackStance,1,SpriteAnimClipPlayType.Onetime,1,2)
+body:SendEvent(event)
+--공격모션 재생하기 ! 
+local position = self.Entity.TransformComponent.Position + self.Offset
+--오프셋으로 해서 파라미터설정해야할지도
+_EffectService:PlayEffect(self.attackEffectId,self.Entity,position,0,Vector3.one,false)
+]]></Code>
+    </CodeBlockMethod>
+    <CodeBlockMethod Name="ProjectileSpawn" ExecSpace="All">
+      <Return Type="void" SyncDirection="None" />
+      <Code><![CDATA[
+local id = self.projectRUID
+local name = "Projectile"
+local position = self.Entity.TransformComponent.Position
+local parent = _EntityService:GetEntityByPath("/maps/gamemap/Skills")
+
+
+local spawnedEntity = _SpawnService:SpawnByModelId(id,name,position,parent)
+
+self:attackAmination()
+self:MoveToMonster(spawnedEntity)
+]]></Code>
+    </CodeBlockMethod>
+  </Methods>
+  <EntityEventHandlers>
+    <CodeBlockEntityEventHandler Name="HandleTriggerEnterEvent" EventName="TriggerEnterEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: TriggerComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local TriggerBodyEntity = event.TriggerBodyEntity
+---------------------------------------------------------
+local target = event.TriggerBodyEntity
+
+if self:IsClient() then return end
+
+if isvalid(target) and target:GetComponent(HitComponent) then
+	table.insert(self.insideMonsters,target)
+
+	if not isvalid(self.currentTarget) then
+		--타겟설정함수
+		self:setNextTarget()
+		
+	end
+end
+
+]]></Code>
+    </CodeBlockEntityEventHandler>
+    <CodeBlockEntityEventHandler Name="HandleTriggerLeaveEvent" EventName="TriggerLeaveEvent" Target="self" Scope="All">
+      <Code><![CDATA[
+--------------- Native Event Sender Info ----------------
+-- Sender: TriggerComponent
+-- Space: Server, Client
+---------------------------------------------------------
+
+-- Parameters
+-- local TriggerBodyEntity = event.TriggerBodyEntity
+---------------------------------------------------------
+local target = event.TriggerBodyEntity
+
+if self:IsClient() then return end 
+
+
+for i, monster in pairs(self.insideMonsters) do
+	if monster == target then
+		table.remove(self.insideMonsters, i)
+
+		break
+	end
+end
+if self.currentTarget == target then
+	--다음타겟설정
+	self:setNextTarget()
+end
+]]></Code>
+    </CodeBlockEntityEventHandler>
+  </EntityEventHandlers>
+</CodeBlockFile>
